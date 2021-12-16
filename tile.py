@@ -17,10 +17,7 @@ from tqdm import tqdm
 from pathlib import Path
 from PIL import Image
 from typing import Tuple
-
-
-supported_extensions = {'svs', 'tif', 'vms', 'vmu',
-                        'ndpi', 'scn', 'mrxs', 'tiff', 'svslide', 'bif'}
+from common import supported_extensions
 
 
 def main(cohort_path: os.PathLike, outpath: os.PathLike, tile_size: int = 224, um_per_tile: float = 256) -> None:

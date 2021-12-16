@@ -11,19 +11,13 @@ import os
 import fire
 import numpy as np
 from openslide import OpenSlide, PROPERTY_NAME_MPP_X
-from sklearn.cluster import KMeans
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 from pathlib import Path
-from PIL import Image
-from typing import Tuple
+from common import supported_extensions
 
 
-supported_extensions = {'svs', 'tif', 'vms', 'vmu',
-                        'ndpi', 'scn', 'mrxs', 'tiff', 'svslide', 'bif'}
-
-
-def main(cohort_path: os.PathLike, outpath: os.PathLike, thumbnail_mpp: float = 64.) -> None:
+def main(cohort_path: os.PathLike, outpath: os.PathLike, thumbnail_mpp: float = 32.) -> None:
     """Extracts thumbnails from whole slide images.
 
     Args:
@@ -36,8 +30,11 @@ def main(cohort_path: os.PathLike, outpath: os.PathLike, thumbnail_mpp: float = 
 
     outpath.mkdir(parents=True, exist_ok=True)
     with ThreadPoolExecutor() as e:
-        for slide_path in tqdm(slides):
+        futures = {
             e.submit(extract_thumbnail, slide_path, outpath, thumbnail_mpp)
+            for slide_path in slides}
+        for _ in tqdm(as_completed(futures), total=len(futures)):
+            pass
 
 
 def extract_thumbnail(slide_path: Path, outpath: Path(), thumbnail_mpp: float) -> None:
