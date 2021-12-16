@@ -19,12 +19,13 @@ from PIL import Image
 from typing import Tuple
 
 
-supported_extensions = {'svs', 'tif', 'vms', 'vmu', 'ndpi', 'scn', 'mrxs', 'tiff', 'svslide', 'bif'}
+supported_extensions = {'svs', 'tif', 'vms', 'vmu',
+                        'ndpi', 'scn', 'mrxs', 'tiff', 'svslide', 'bif'}
 
 
 def main(cohort_path: os.PathLike, outpath: os.PathLike, tile_size: int = 224, um_per_tile: float = 256) -> None:
     """Extracts tiles from whole slide images.
-    
+
     Args:
         cohort_path: Folder containing whole slide images.
         outdir: Output folder.
@@ -38,7 +39,9 @@ def main(cohort_path: os.PathLike, outpath: os.PathLike, tile_size: int = 224, u
 
     for slide_path in tqdm(slides):
         extract_tiles(slide_path,
-                      outpath/slide_path.relative_to(cohort_path).parent/slide_path.name,
+                      outpath /
+                      slide_path.relative_to(
+                          cohort_path).parent/slide_path.name,
                       tile_size,
                       um_per_tile)
 
@@ -60,7 +63,8 @@ def extract_tiles(slide_path: Path, outdir: Path, tile_size: int = 224, um_per_t
 
 
 def get_scaled_thumb(slide: OpenSlide, um_per_tile: float) -> Tuple[float, Image.Image]:
-    tile_size_px = um_per_tile/float(slide.properties[PROPERTY_NAME_MPP_X]) #TODO handle missing mpp
+    # TODO handle missing mpp
+    tile_size_px = um_per_tile/float(slide.properties[PROPERTY_NAME_MPP_X])
 
     thumb_size = (np.array(slide.dimensions)/tile_size_px).astype(int)
     return tile_size_px, slide.get_thumbnail(thumb_size)
