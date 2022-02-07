@@ -11,7 +11,6 @@ import os
 import fire
 import numpy as np
 from openslide import OpenSlide, PROPERTY_NAME_MPP_X
-from sklearn.cluster import KMeans
 from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
 from pathlib import Path
@@ -24,7 +23,7 @@ import logging
 def main(
         cohort_path: os.PathLike, outpath: os.PathLike,
         tile_size: int = 224, um_per_tile: float = 256,
-        force: bool = False) -> None:
+        threshold: int = 224, force: bool = False) -> None:
     """Extracts tiles from whole slide images.
 
     Args:
@@ -36,32 +35,34 @@ def main(
     """
     cohort_path, outpath = Path(cohort_path), Path(outpath)
     logging.basicConfig(filename=outpath/'logfile', level=logging.DEBUG)
+    logging.getLogger().addHandler(logging.StreamHandler())
     slides = sum((list(cohort_path.glob(f'**/*.{ext}'))
                   for ext in supported_extensions),
                  start=[])
 
-
-    for slide_path in tqdm(slides):
+    for slide_path in (progress := tqdm(slides)):
         try:
+            progress.set_description(slide_path.stem)
             extract_tiles(slide_path,
-                          outpath /
-                          slide_path.relative_to(
-                              cohort_path).parent/slide_path.stem,
-                          tile_size,
-                          um_per_tile,
-                          force)
+                          outpath/slide_path.relative_to(cohort_path).parent/slide_path.stem,
+                          tile_size=tile_size,
+                          um_per_tile=um_per_tile,
+                          threshold=threshold,
+                          force=force)
         except Exception as e:
             logging.exception(f'{slide_path}: {e}')
 
 
 def extract_tiles(
         slide_path: Path, outdir: Path,
+        *,
         tile_size: int, um_per_tile: float,
-        force: bool) -> None:
+        threshold: int, force: bool
+) -> None:
     slide = OpenSlide(str(slide_path))
 
     tile_size_px, thumb = get_scaled_thumb(slide, um_per_tile)
-    mask = get_mask_from_thumb(thumb)
+    mask = get_mask_from_thumb(thumb, threshold)
     coords = np.flip(np.transpose(mask.nonzero()), 1) * tile_size_px
 
     outdir.mkdir(exist_ok=True, parents=True)
@@ -82,18 +83,9 @@ def get_scaled_thumb(slide: OpenSlide, um_per_tile: float) -> Tuple[float, Image
     return tile_size_px, slide.get_thumbnail(thumb_size)
 
 
-def get_mask_from_thumb(thumb):
-    pixels = np.array(thumb).reshape(-1, 3)
-    clustering = KMeans(n_clusters=2).fit(pixels)
-
-    # class which contains the foreground
-    foreground_cluster_idx = clustering.cluster_centers_.sum(1).argmin()
-    mask = (clustering
-            .predict(pixels)
-            .reshape(tuple(reversed(thumb.size)))
-            == foreground_cluster_idx)
-
-    return mask
+def get_mask_from_thumb(thumb, threshold: int) -> np.ndarray:
+    thumb = thumb.convert('L')
+    return np.array(thumb) < threshold
 
 
 def read_and_save_tile(slide, outpath, coords, tile_size_px, tile_size_out):
