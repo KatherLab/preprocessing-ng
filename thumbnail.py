@@ -23,6 +23,8 @@ def main(
     """Extracts thumbnails from whole slide images.
 
     Args:
+        cohort_path:  A folder containing whole slide images.
+        outpath:  The output folder.
         thumbnail_mpp:  Micrometers per tile for the thumbnails.
         force:  Overwrite already existing thumbnails.
     """

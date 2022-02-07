@@ -22,13 +22,13 @@ import logging
 
 def main(
         cohort_path: os.PathLike, outpath: os.PathLike,
-        tile_size: int = 224, um_per_tile: float = 256,
+        tile_size: int = 224, um_per_tile: float = 256.,
         threshold: int = 224, force: bool = False) -> None:
     """Extracts tiles from whole slide images.
 
     Args:
-        cohort_path:  Folder containing whole slide images.
-        outdir:  Output folder.
+        cohort_path:  A folder containing whole slide images.
+        outpath:  The output folder.
         tile_size:  The size of the output tiles in pixels.
         um_per_tile:  Size each tile spans in µm.
         force:  Overwrite existing tiles.

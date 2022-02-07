@@ -1,0 +1,65 @@
+## Tiling ##
+
+NAME
+    tile.py - Extracts tiles from whole slide images.
+
+SYNOPSIS
+    tile.py COHORT_PATH OUTPATH <flags>
+
+DESCRIPTION
+    Extracts tiles from whole slide images.
+
+POSITIONAL ARGUMENTS
+    COHORT_PATH
+        Type: PathLike
+        A folder containing whole slide images.
+    OUTPATH
+        Type: PathLike
+        The output folder.
+
+FLAGS
+    --tile_size=TILE_SIZE
+        Type: int
+        Default: 224
+        The size of the output tiles in pixels.
+    --um_per_tile=UM_PER_TILE
+        Type: float
+        Default: 256.0
+        Size each tile spans in µm.
+    --threshold=THRESHOLD
+        Type: int
+        Default: 224
+    --force=FORCE
+        Type: bool
+        Default: False
+        Overwrite existing tiles.
+
+
+## Thumbnails ##
+
+NAME
+    thumbnail.py - Extracts thumbnails from whole slide images.
+
+SYNOPSIS
+    thumbnail.py COHORT_PATH OUTPATH <flags>
+
+DESCRIPTION
+    Extracts thumbnails from whole slide images.
+
+POSITIONAL ARGUMENTS
+    COHORT_PATH
+        Type: PathLike
+        A folder containing whole slide images.
+    OUTPATH
+        Type: PathLike
+        The output folder.
+
+FLAGS
+    --thumbnail_mpp=THUMBNAIL_MPP
+        Type: float
+        Default: 32.0
+        Micrometers per tile for the thumbnails.
+    --force=FORCE
+        Type: bool
+        Default: False
+        Overwrite already existing thumbnails.
