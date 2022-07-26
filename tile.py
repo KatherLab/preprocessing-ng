@@ -8,16 +8,20 @@ __maintainer__ = 'Marko van Treeck'
 __email__ = 'markovantreeck@gmail.com'
 
 import os
+import shutil
+import tempfile
 import fire
 import numpy as np
 from openslide import OpenSlide, PROPERTY_NAME_MPP_X
-from concurrent.futures import ThreadPoolExecutor
+from concurrent import futures
 from tqdm import tqdm
 from pathlib import Path
 from PIL import Image
 from typing import Tuple
 from common import supported_extensions
+import time
 import logging
+import queue
 
 
 def main(
@@ -40,17 +44,30 @@ def main(
                   for ext in supported_extensions),
                  start=[])
 
-    for slide_path in (progress := tqdm(slides)):
-        try:
-            progress.set_description(slide_path.stem)
-            extract_tiles(slide_path,
-                          outpath/slide_path.relative_to(cohort_path).parent/slide_path.stem,
-                          tile_size=tile_size,
-                          um_per_tile=um_per_tile,
-                          threshold=threshold,
-                          force=force)
-        except Exception as e:
-            logging.exception(f'{slide_path}: {e}')
+    tmpdir = tempfile.mkdtemp(prefix='tile')
+    submitted_jobs = {}
+    with futures.ThreadPoolExecutor(1) as executor:
+        for i, slide_path in enumerate((progress := tqdm(slides))):
+            try:
+                progress.set_description(slide_path.stem)
+                tmp_slide_path = Path(tmpdir)/slide_path.name
+                shutil.copy(slide_path, tmp_slide_path)
+                future = executor.submit(
+                    extract_tiles,
+                    tmp_slide_path,
+                    outpath/slide_path.relative_to(cohort_path).parent/slide_path.stem,
+                    tile_size=tile_size,
+                    um_per_tile=um_per_tile,
+                    threshold=threshold,
+                    force=force)
+                submitted_jobs[future] = tmp_slide_path
+                if len(submitted_jobs) > 2:
+                    done, _ = futures.wait(submitted_jobs, return_when=futures.FIRST_COMPLETED)
+                    for future in done:
+                        submitted_jobs[future].unlink()
+                        del submitted_jobs[future]
+            except Exception as e:
+                logging.exception(f'{tmp_slide_path}: {e}')
 
 
 def extract_tiles(
@@ -66,7 +83,7 @@ def extract_tiles(
     coords = np.flip(np.transpose(mask.nonzero()), 1) * tile_size_px
 
     outdir.mkdir(exist_ok=True, parents=True)
-    with ThreadPoolExecutor() as e:
+    with futures.ThreadPoolExecutor(os.cpu_count()) as e:
         for c in coords:
             c = c.astype(int)
             fn = outdir/f'{outdir.stem}_({c[0]},{c[1]}).jpg'
