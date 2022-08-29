@@ -1,11 +1,21 @@
 #!/usr/bin/env python3
 
 __author__ = 'Marko van Treeck'
-__copyright__ = 'Copyright 2021, Kather Lab'
+__copyright__ = 'Copyright 2022, Kather Lab'
 __license__ = 'MIT'
-__version__ = '0.1.0'
-__maintainer__ = 'Marko van Treeck'
+__version__ = '0.2.0'
+__maintainer__ = ['Marko van Treeck', 'Omar El Nahhas']
 __email__ = 'markovantreeck@gmail.com'
+
+
+'''
+Version 0.2.0 from 29-08-2022, added Canny edge detector to remove blurry/white
+tiles which are not useful. The prior method of filtering everything > 224 pixels
+(i.e., white slides) did not account for blur or black tiles, or mostly white tiles.
+The edge cut-off (>2) has been hard-coded and adapted from the Normalisation script 
+in the old-gen pre-processing script. Note that Canny itself has hard-coded thresholds
+as well (40, 100).
+'''
 
 import os
 import shutil
@@ -22,6 +32,7 @@ from common import supported_extensions
 import time
 import logging
 import queue
+import cv2
 
 
 def main(
@@ -79,7 +90,11 @@ def extract_tiles(
     slide = OpenSlide(str(slide_path))
 
     tile_size_px, thumb = get_scaled_thumb(slide, um_per_tile)
+
+    #the mask contains the tiles which have survived the threshold criteria of being < 224 pixels
     mask = get_mask_from_thumb(thumb, threshold)
+    
+    #coords has dimension of: amount of tiles * (x,y) coords of tiles
     coords = np.flip(np.transpose(mask.nonzero()), 1) * tile_size_px
 
     outdir.mkdir(exist_ok=True, parents=True)
@@ -107,8 +122,28 @@ def get_mask_from_thumb(thumb, threshold: int) -> np.ndarray:
 
 def read_and_save_tile(slide, outpath, coords, tile_size_px, tile_size_out):
     tile = slide.read_region(coords, 0, (int(tile_size_px),)*2)
+    
+    # Below was added in version 0.2.0, using Canny as extra filtering method
+    tile_to_greyscale = tile.convert('L')
+    # tile_to_greyscale is an PIL.Image.Image with image mode L 
+    # Note: If you have an L mode image, that means it is 
+    # a single channel image - normally interpreted as greyscale. 
+    # The L means that is just stores the Luminance. 
+    # It is very compact, but only stores a greyscale, not colour.
+
+    tile2array = np.array(tile_to_greyscale)
+    edge = cv2.Canny(tile2array, 40, 100)
+    #avoid dividing by zero 
+    edge = (edge / np.max(edge) if np.max(edge) != 0 else 0)               
+    edge = (((np.sum(np.sum(edge)) / (tile2array.shape[0]*tile2array.shape[1])) * 100)\
+        if (tile2array.shape[0]*tile2array.shape[1]) != 0 else 0)
+    
     tile = tile.convert('RGB').resize((tile_size_out,)*2)
-    tile.save(outpath)
+
+    if(edge < 2.):
+        logging.info(f"Tile rejected, found 2 or less edges. Tile: {outpath}")
+    else:
+        tile.save(outpath)
 
 
 if __name__ == '__main__':
