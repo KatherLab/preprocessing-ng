@@ -3,7 +3,7 @@
 __author__ = 'Marko van Treeck'
 __copyright__ = 'Copyright 2022, Kather Lab'
 __license__ = 'MIT'
-__version__ = '0.2.0'
+__version__ = '0.2.1'
 __maintainer__ = ['Marko van Treeck', 'Omar El Nahhas']
 __email__ = 'markovantreeck@gmail.com'
 
@@ -15,6 +15,8 @@ tiles which are not useful. The prior method of filtering everything > 224 pixel
 The edge cut-off (>2) has been hard-coded and adapted from the Normalisation script 
 in the old-gen pre-processing script. Note that Canny itself has hard-coded thresholds
 as well (40, 100).
+
+Version 0.2.1 from 30-08-2022 added canny as optional input to run
 '''
 
 import os
@@ -38,7 +40,7 @@ import cv2
 def main(
         cohort_path: os.PathLike, outpath: os.PathLike,
         tile_size: int = 224, um_per_tile: float = 256.,
-        threshold: int = 224, force: bool = False) -> None:
+        threshold: int = 224, force: bool = False, canny: bool = True) -> None:
     """Extracts tiles from whole slide images.
 
     Args:
@@ -70,7 +72,8 @@ def main(
                     tile_size=tile_size,
                     um_per_tile=um_per_tile,
                     threshold=threshold,
-                    force=force)
+                    force=force,
+                    canny=canny)
                 submitted_jobs[future] = tmp_slide_path
                 if len(submitted_jobs) > 2:
                     done, _ = futures.wait(submitted_jobs, return_when=futures.FIRST_COMPLETED)
@@ -85,7 +88,7 @@ def extract_tiles(
         slide_path: Path, outdir: Path,
         *,
         tile_size: int, um_per_tile: float,
-        threshold: int, force: bool
+        threshold: int, force: bool, canny: bool
 ) -> None:
     slide = OpenSlide(str(slide_path))
 
@@ -104,7 +107,7 @@ def extract_tiles(
             fn = outdir/f'{outdir.stem}_({c[0]},{c[1]}).jpg'
             if fn.exists() and not force:
                 continue
-            e.submit(read_and_save_tile, slide, fn, c, tile_size_px, tile_size)
+            e.submit(read_and_save_tile, slide, fn, c, tile_size_px, tile_size, canny)
 
 
 def get_scaled_thumb(slide: OpenSlide, um_per_tile: float) -> Tuple[float, Image.Image]:
@@ -120,29 +123,39 @@ def get_mask_from_thumb(thumb, threshold: int) -> np.ndarray:
     return np.array(thumb) < threshold
 
 
-def read_and_save_tile(slide, outpath, coords, tile_size_px, tile_size_out):
+def read_and_save_tile(slide, outpath, coords, tile_size_px, tile_size_out, canny):
     tile = slide.read_region(coords, 0, (int(tile_size_px),)*2)
     
-    # Below was added in version 0.2.0, using Canny as extra filtering method
-    tile_to_greyscale = tile.convert('L')
-    # tile_to_greyscale is an PIL.Image.Image with image mode L 
-    # Note: If you have an L mode image, that means it is 
-    # a single channel image - normally interpreted as greyscale. 
-    # The L means that is just stores the Luminance. 
-    # It is very compact, but only stores a greyscale, not colour.
+    #True by default, which runs Canny edge detection
+    if canny:
+        # Below was added in version 0.2.0, using Canny as extra filtering method
+        tile_to_greyscale = tile.convert('L')
+        # tile_to_greyscale is an PIL.Image.Image with image mode L 
+        # Note: If you have an L mode image, that means it is 
+        # a single channel image - normally interpreted as greyscale. 
+        # The L means that is just stores the Luminance. 
+        # It is very compact, but only stores a greyscale, not colour.
 
-    tile2array = np.array(tile_to_greyscale)
-    edge = cv2.Canny(tile2array, 40, 100)
-    #avoid dividing by zero 
-    edge = (edge / np.max(edge) if np.max(edge) != 0 else 0)               
-    edge = (((np.sum(np.sum(edge)) / (tile2array.shape[0]*tile2array.shape[1])) * 100)\
-        if (tile2array.shape[0]*tile2array.shape[1]) != 0 else 0)
-    
-    tile = tile.convert('RGB').resize((tile_size_out,)*2)
+        tile2array = np.array(tile_to_greyscale)
 
-    if(edge < 2.):
-        logging.info(f"Tile rejected, found 2 or less edges. Tile: {outpath}")
+        #hardcoded thresholds 40 and 100
+        edge = cv2.Canny(tile2array, 40, 100)
+        
+        #avoid dividing by zero 
+        edge = (edge / np.max(edge) if np.max(edge) != 0 else 0)               
+        edge = (((np.sum(np.sum(edge)) / (tile2array.shape[0]*tile2array.shape[1])) * 100)\
+            if (tile2array.shape[0]*tile2array.shape[1]) != 0 else 0)
+        
+        tile = tile.convert('RGB').resize((tile_size_out,)*2)
+        
+        #hardcoded limit. Less or equal to 2 edges will be rejected (i.e., not saved)
+        if(edge < 2.):
+            logging.info(f"Tile rejected, found 2 or less edges. Tile: {outpath}")
+        else:
+            tile.save(outpath)
     else:
+        #if the canny variable is set to False, it will just immediatly save the tile
+        tile = tile.convert('RGB').resize((tile_size_out,)*2)
         tile.save(outpath)
 
 

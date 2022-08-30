@@ -33,7 +33,10 @@ FLAGS
         Type: bool
         Default: False
         Overwrite existing tiles.
-
+    --canny
+        Type: bool
+        Default: True
+        Use Canny edge detector
 
 ## Thumbnails ##
 
