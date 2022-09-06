@@ -1,31 +1,11 @@
 #!/usr/bin/env python3
-
-__author__ = 'Marko van Treeck'
-__copyright__ = 'Copyright 2022, Kather Lab'
-__license__ = 'MIT'
-__version__ = '0.2.1'
-__maintainer__ = ['Marko van Treeck', 'Omar El Nahhas']
-__email__ = 'markovantreeck@gmail.com'
-
-
-'''
-Version 0.2.0 from 29-08-2022, added Canny edge detector to remove blurry/white
-tiles which are not useful. The prior method of filtering everything > 224 pixels
-(i.e., white slides) did not account for blur or black tiles, or mostly white tiles.
-The edge cut-off (>2) has been hard-coded and adapted from the Normalisation script 
-in the old-gen pre-processing script. Note that Canny itself has hard-coded thresholds
-as well (40, 100).
-
-Version 0.2.1 from 30-08-2022 added canny as optional input to run
-'''
-
 import os
 import shutil
 import tempfile
-import fire
 import numpy as np
 from openslide import OpenSlide, PROPERTY_NAME_MPP_X
 from concurrent import futures
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 from pathlib import Path
 from PIL import Image
@@ -36,8 +16,7 @@ import logging
 import queue
 import cv2
 
-
-def main(
+def Tile(
         cohort_path: os.PathLike, outpath: os.PathLike,
         tile_size: int = 224, um_per_tile: float = 256.,
         threshold: int = 224, force: bool = False, canny: bool = True) -> None:
@@ -148,7 +127,7 @@ def read_and_save_tile(slide, outpath, coords, tile_size_px, tile_size_out, cann
         
         tile = tile.convert('RGB').resize((tile_size_out,)*2)
         
-        #hardcoded limit. Less or equal to 2 edges will be rejected (i.e., not saved)
+        #hardcoded limit Less or equal to 2 edges will be rejected (i.e., not saved)
         if(edge < 2.):
             logging.info(f"Tile rejected, found 2 or less edges. Tile: {outpath}")
         else:
@@ -159,5 +138,3 @@ def read_and_save_tile(slide, outpath, coords, tile_size_px, tile_size_out, cann
         tile.save(outpath)
 
 
-if __name__ == '__main__':
-    fire.Fire(main)
