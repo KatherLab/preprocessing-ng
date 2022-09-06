@@ -3,7 +3,7 @@
 __author__ = 'Marko van Treeck'
 __copyright__ = 'Copyright 2022, Kather Lab'
 __license__ = 'MIT'
-__version__ = '0.2.2'
+__version__ = '0.3.0'
 __maintainer__ = ['Marko van Treeck', 'Omar El Nahhas']
 __email__ = 'markovantreeck@gmail.com'
 
@@ -17,7 +17,33 @@ Normalisation script in the old-gen pre-processing script. Note that Canny
 itself has hard-coded thresholds as well (40, 100).
 
 Version 0.2.1 from 30-08-2022 added canny as optional input to run.
+
+Version 0.3.0 from 06-09-2022 added proper argparser.
 '''
+
+import argparse
+from pathlib import Path
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Extract tiles from WSIs.')
+    parser.add_argument('cohort_path', type=Path)
+    parser.add_argument('-o', '--outdir', type=Path)
+    parser.add_argument(
+        '--tile-size', type=int, default=224,
+        help='Size of output tiles.')
+    parser.add_argument(
+        '--um-per-tile', type=float, default=256.,
+        help='Microns covered by each tile.')
+    parser.add_argument(
+        '--brightness-cutoff', type=int, default=224,
+        help='Brightness past which tiles are rejected as background.')
+    parser.add_argument(
+        '-f', '--force', action='store_true',
+        help='Overwrite existing tile.')
+    parser.add_argument(
+        '--no-canny', dest='use_canny', action='store_false',
+        help='Disable rejection of edge tiles. Useful for TMAs / sparse slides.')
+    args = parser.parse_args()
 
 from contextlib import contextmanager
 import os
@@ -28,7 +54,6 @@ import numpy as np
 from openslide import OpenSlide, PROPERTY_NAME_MPP_X
 from concurrent import futures
 from tqdm import tqdm
-from pathlib import Path
 from PIL import Image
 from typing import Tuple
 from common import supported_extensions
@@ -37,9 +62,10 @@ import cv2
 
 
 def main(
-        cohort_path: os.PathLike, outpath: os.PathLike,
+        cohort_path: Path, outdir: Path,
         tile_size: int = 224, um_per_tile: float = 256.,
-        threshold: int = 224, force: bool = False, canny: bool = True) -> None:
+        brightness_cutoff: int = 224, force: bool = False, use_canny: bool = True
+) -> None:
     """Extracts tiles from whole slide images.
 
     Args:
@@ -49,9 +75,8 @@ def main(
         um_per_tile:  Size each tile spans in µm.
         force:  Overwrite existing tiles.
     """
-    cohort_path, outpath = Path(cohort_path), Path(outpath)
-    outpath.mkdir(exist_ok=True, parents=True)
-    logging.basicConfig(filename=outpath/'logfile', level=logging.DEBUG)
+    outdir.mkdir(exist_ok=True, parents=True)
+    logging.basicConfig(filename=outdir/'logfile', level=logging.DEBUG)
     logging.getLogger().addHandler(logging.StreamHandler())
     slides = sum((list(cohort_path.glob(f'**/*.{ext}'))
                   for ext in supported_extensions),
@@ -68,13 +93,13 @@ def main(
             future = executor.submit(
                 extract_tiles,
                 slide_path=tmp_slide_path,
-                outdir=outpath /
+                outdir=outdir /
                 slide_path.relative_to(cohort_path).parent/slide_path.stem,
                 tile_size=tile_size,
                 um_per_tile=um_per_tile,
-                threshold=threshold,
+                threshold=brightness_cutoff,
                 force=force,
-                canny=canny)
+                canny=use_canny)
             submitted_jobs[future] = tmp_slide_path     # to delete later
 
             while len(submitted_jobs) > 2 or (submitted_jobs and i == len(slides) - 1):
@@ -101,8 +126,8 @@ def tempdir(*args, **kwargs):
 
 
 def extract_tiles(
-        slide_path: Path, outdir: Path,
         *,
+        slide_path: Path, outdir: Path,
         tile_size: int, um_per_tile: float,
         threshold: int, force: bool, canny: bool
 ) -> None:
@@ -136,7 +161,6 @@ def extract_tiles(
                 future.result()
             except Exception as e:
                 logging.exception(f'{slide_path}: {e}')
-
 
 
 def get_scaled_thumb(slide: OpenSlide, um_per_tile: float) -> Tuple[float, Image.Image]:
@@ -188,4 +212,4 @@ def read_and_save_tile(*, slide, outpath, coords, tile_size_px, tile_size_out, u
 
 
 if __name__ == '__main__':
-    fire.Fire(main)
+    main(**vars(args))
