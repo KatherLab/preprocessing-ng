@@ -1,43 +1,22 @@
 Note: Requires Python 3.10
 
 ## Tiling
+Extracts tiles from whole slide images.
 
-NAME
-    tile.py - Extracts tiles from whole slide images.
-
-SYNOPSIS
-    tile.py COHORT_PATH OUTPATH <flags>
-
-DESCRIPTION
-    Extracts tiles from whole slide images.
-
-POSITIONAL ARGUMENTS
-    COHORT_PATH
-        Type: PathLike
-        A folder containing whole slide images.
-    OUTPATH
-        Type: PathLike
-        The output folder.
-
-FLAGS
-    --tile_size=TILE_SIZE
-        Type: int
-        Default: 224
-        The size of the output tiles in pixels.
-    --um_per_tile=UM_PER_TILE
-        Type: float
-        Default: 256.0
-        Size each tile spans in µm.
-    --threshold=THRESHOLD
-        Type: int
-        Default: 224
-    --force=FORCE
-        Type: bool
-        Default: False
-        Overwrite existing tiles.
-    --no-canny
-        Do not use Canny edge detector
-
+#### Usage
+python tile.py COHORT_PATH -o OUTPATH <flags>
+   
+COHORT_PATH is a folder containing whole slide images.
+    
+Input Variable name | Description
+--- | --- 
+-o or --outdir | Path to the output folder where tiles are saved
+--tile_size | The size of the output tiles in pixels, default int 224
+--um_per_tile| Size each tile spans in µm, default float 256.0
+--brightness-cutoff | Brightness past which tiles are rejected as background, default int 224
+-f or --force | Overwrite existing tile
+--no-canny | Disable rejection of edge tiles. Useful for TMAs / sparse slides.
+    
 
 ## Thumbnails
 
