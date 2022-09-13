@@ -1,4 +1,5 @@
 Note: Requires Python 3.10
+
 ## Tiling
 
 NAME
@@ -34,10 +35,8 @@ FLAGS
         Type: bool
         Default: False
         Overwrite existing tiles.
-    --canny
-        Type: bool
-        Default: True
-        Use Canny edge detector
+    --no-canny
+        Do not use Canny edge detector
 
 
 ## Thumbnails
