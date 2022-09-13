@@ -199,13 +199,11 @@ def read_and_save_tile(*, slide, outpath, coords, tile_size_px, tile_size_out, u
         edge = (((np.sum(np.sum(edge)) / (tile2array.shape[0]*tile2array.shape[1])) * 100)
                 if (tile2array.shape[0]*tile2array.shape[1]) != 0 else 0)
 
-        tile = tile.convert('RGB').resize((tile_size_out,)*2)
-
         # hardcoded limit. Less or equal to 2 edges will be rejected (i.e., not saved)
         if(edge < 2.):
             logging.info(
                 f'Tile rejected, found 2 or less edges. Tile: {outpath}')
-        return
+            return
 
     tile = tile.convert('RGB').resize((tile_size_out,)*2)
     tile.save(outpath)
