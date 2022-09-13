@@ -1,4 +1,5 @@
-## Tiling ##
+Note: Requires Python 3.10
+## Tiling
 
 NAME
     tile.py - Extracts tiles from whole slide images.
@@ -38,7 +39,8 @@ FLAGS
         Default: True
         Use Canny edge detector
 
-## Thumbnails ##
+
+## Thumbnails
 
 NAME
     thumbnail.py - Extracts thumbnails from whole slide images.
