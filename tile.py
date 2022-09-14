@@ -83,8 +83,9 @@ def main(
                  start=[])
 
     submitted_jobs = {}
-    with (futures.ThreadPoolExecutor(1) as executor,
-          tempdir(prefix='tile-') as tmpdir):
+
+    #using brackets with (... as ..., ) requires python 3.10
+    with futures.ThreadPoolExecutor(1) as executor, tempdir(prefix='tile-') as tmpdir:
         for i, slide_path in enumerate((progress := tqdm(slides))):
             progress.set_description(slide_path.stem)
             tmp_slide_path = tmpdir/slide_path.name

@@ -1,5 +1,3 @@
-Note: Requires Python 3.10
-
 ## Tiling
 Extracts tiles from whole slide images.
 
