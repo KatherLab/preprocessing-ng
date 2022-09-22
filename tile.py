@@ -45,11 +45,10 @@ if __name__ == '__main__':
         help='Disable rejection of edge tiles. Useful for TMAs / sparse slides.')
     args = parser.parse_args()
 
-from contextlib import contextmanager
+
 import os
 import shutil
 import tempfile
-import fire
 import numpy as np
 from openslide import OpenSlide, PROPERTY_NAME_MPP_X
 from concurrent import futures
@@ -85,10 +84,10 @@ def main(
     submitted_jobs = {}
 
     #using brackets with (... as ..., ) requires python 3.10
-    with futures.ThreadPoolExecutor(1) as executor, tempdir(prefix='tile-') as tmpdir:
+    with futures.ThreadPoolExecutor(1) as executor, tempfile.TemporaryDirectory(prefix='tile-') as tmpdir:
         for i, slide_path in enumerate((progress := tqdm(slides))):
             progress.set_description(slide_path.stem)
-            tmp_slide_path = tmpdir/slide_path.name
+            tmp_slide_path = Path(tmpdir)/slide_path.name
             shutil.copy(slide_path, tmp_slide_path)
 
             future = executor.submit(
@@ -114,16 +113,6 @@ def main(
                     except Exception as e:
                         logging.exception(f'{slide_path}: {e}')
                     del submitted_jobs[future]
-
-
-@contextmanager
-def tempdir(*args, **kwargs):
-    """A context manager to (hopefully) clean up our tmpdir on a crash."""
-    path = Path(tempfile.mkdtemp(*args, **kwargs))
-    try:
-        yield path
-    finally:
-        shutil.rmtree(path)
 
 
 def extract_tiles(
