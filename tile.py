@@ -89,6 +89,12 @@ def main(
             progress.set_description(slide_path.stem)
             tmp_slide_path = Path(tmpdir)/slide_path.name
             shutil.copy(slide_path, tmp_slide_path)
+            job = tmp_slide_path
+            if slide_path.suffix == '.mrxs':
+                original_data_folder = slide_path.parent/slide_path.stem
+                target_data_folder = tmp_slide_path.parent/tmp_slide_path.stem
+                shutil.copytree(original_data_folder, target_data_folder)
+                job = [tmp_slide_path, target_data_folder]
 
             future = executor.submit(
                 extract_tiles,
@@ -100,14 +106,20 @@ def main(
                 threshold=brightness_cutoff,
                 force=force,
                 canny=use_canny)
-            submitted_jobs[future] = tmp_slide_path     # to delete later
+            submitted_jobs[future] = job    # to delete later
 
             while len(submitted_jobs) > 2 or (submitted_jobs and i == len(slides) - 1):
                 done, _ = futures.wait(
                     submitted_jobs, return_when=futures.FIRST_COMPLETED)
                 for future in done:
                     # delete temporary slide copy
-                    submitted_jobs[future].unlink()
+                    if isinstance(submitted_jobs[future], list):
+                        submitted_jobs[future].unlink()
+                        for path in submitted_jobs[future]:
+                            if os.path.isdir(path):
+                                shutil.rmtree(path) # delete directory  and all its contents
+                            else:
+                                os.remove(path)
                     try:
                         future.result()     # force result to get eventual exceptions
                     except Exception as e:
