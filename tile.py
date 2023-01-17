@@ -166,12 +166,24 @@ def extract_tiles(
 
 
 def get_scaled_thumb(slide: OpenSlide, um_per_tile: float) -> Tuple[float, Image.Image]:
-    # TODO handle missing mpp
-    tile_size_px = um_per_tile/float(slide.properties[PROPERTY_NAME_MPP_X])
+    try:
+        tile_size_px = um_per_tile/float(slide.properties[PROPERTY_NAME_MPP_X])
+    except KeyError:
+        tile_size_px = handle_missing_mpp(slide, um_per_tile)
 
     thumb_size = (np.array(slide.dimensions)/tile_size_px).astype(int)
     return tile_size_px, slide.get_thumbnail(thumb_size)
 
+def handle_missing_mpp(slide: OpenSlide, um_per_tile: float) -> float:
+    logging.exception("Missing mpp in metadata of this file format, reading mpp from metadata")
+    import xml.dom.minidom as minidom
+    xml_path = slide.properties['tiff.ImageDescription']
+    doc = minidom.parseString(xml_path)
+    collection = doc.documentElement
+    images = collection.getElementsByTagName("Image")
+    pixels = images[0].getElementsByTagName("Pixels")
+    tile_size_px = um_per_tile / float(pixels[0].getAttribute("PhysicalSizeX"))
+    return tile_size_px
 
 def get_mask_from_thumb(thumb, threshold: int) -> np.ndarray:
     thumb = thumb.convert('L')
