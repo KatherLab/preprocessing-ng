@@ -114,7 +114,6 @@ def main(
                 for future in done:
                     # delete temporary slide copy
                     if isinstance(submitted_jobs[future], list):
-                        submitted_jobs[future].unlink()
                         for path in submitted_jobs[future]:
                             if os.path.isdir(path):
                                 shutil.rmtree(path) # delete directory  and all its contents
