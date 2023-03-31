@@ -2,6 +2,14 @@
 Extracts tiles from whole slide images.
 
 #### Usage
+## With container
+```bash
+$ docker build -t preprocessing-ng ./
+```
+```bash
+$ docker run -it --rm -v "$(pwd)":/app -v <COHORT_PATH>:/input -v <OUTPATH>:/output preprocessing-ng python /app/tile.py /input -o /output
+```
+
 python tile.py COHORT_PATH -o OUTPATH <flags>
    
 COHORT_PATH is a folder containing whole slide images.
